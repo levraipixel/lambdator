@@ -10,9 +10,10 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
+  deploy-r-b:
     name: Build & Deploy
     runs-on: ubuntu-latest
+    environment: R-B
 
     steps:
       - name: Checkout
