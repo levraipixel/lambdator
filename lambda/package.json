@@ -1,0 +1,9 @@
+{
+  "name": "lambdator-lambda",
+  "version": "1.0.0",
+  "description": "Serverless Discord bot Lambda handler",
+  "type": "module",
+  "dependencies": {
+    "discord-interactions": "^3.4.0"
+  }
+}
