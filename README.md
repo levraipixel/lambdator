@@ -57,19 +57,20 @@ Discord displays the bot reply in the channel
 
 ### 2. Create the Terraform state backend
 
-The bootstrap config creates the S3 bucket and DynamoDB lock table used by the main Terraform config. It uses a local backend so it has no chicken-and-egg dependency.
+The bootstrap config creates the S3 bucket, DynamoDB lock table, and GitHub Actions IAM role. It uses a local backend so it has no chicken-and-egg dependency.
 
 ```bash
 cd terraform/bootstrap
 terraform init
-terraform apply
+terraform apply -var="github_repo=your-org/lambdator"
 ```
 
-Note the two output values — you will need them in step 4:
+Note the three output values — you will need them in step 4:
 
 ```
-tf_state_bucket    = "lambdator-tf-state"
-tf_state_lock_table = "lambdator-tf-lock"
+tf_state_bucket         = "lambdator-tf-state"
+tf_state_lock_table     = "lambdator-tf-lock"
+github_actions_role_arn = "arn:aws:iam::123456789:role/lambdator-github-actions"
 ```
 
 ### 3. Configure GitHub repository settings
@@ -80,7 +81,7 @@ In your GitHub repository go to **Settings → Secrets and variables → Actions
 
 | Name | Where to find it |
 |---|---|
-| `AWS_ROLE_ARN` | ARN of an IAM role with OIDC trust for GitHub Actions (see note below) |
+| `AWS_ROLE_ARN` | `github_actions_role_arn` output from the bootstrap step |
 | `DISCORD_PUBLIC_KEY` | Discord Developer Portal → your app → General Information |
 | `DISCORD_APP_ID` | Discord Developer Portal → your app → General Information |
 | `DISCORD_BOT_TOKEN` | Discord Developer Portal → your app → Bot → Reset Token |
@@ -94,7 +95,7 @@ In your GitHub repository go to **Settings → Secrets and variables → Actions
 | `TF_STATE_LOCK_TABLE` | `lambdator-tf-lock` (from step 2) |
 
 > **IAM role for GitHub Actions**
-> The CI workflow uses OIDC (no long-lived access keys). Create an IAM role with a trust policy for `token.actions.githubusercontent.com` and attach permissions for Lambda, API Gateway, IAM, S3, and DynamoDB. See the [AWS documentation](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html) for the full setup.
+> The CI workflow uses OIDC — no long-lived access keys are stored in GitHub. The role and its OIDC trust policy are created automatically by the bootstrap step above.
 
 ### 4. Run the first deployment
 
