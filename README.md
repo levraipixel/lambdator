@@ -89,7 +89,7 @@ In your GitHub repository go to **Settings → Secrets and variables → Actions
 
 | Name | Example value |
 |---|---|
-| `AWS_REGION` | `us-east-1` |
+| `AWS_REGION` | `eu-west-3` |
 | `TF_STATE_BUCKET` | `lambdator-tf-state` (from step 2) |
 | `TF_STATE_LOCK_TABLE` | `lambdator-tf-lock` (from step 2) |
 

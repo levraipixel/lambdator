@@ -31,7 +31,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+          aws-region: ${{ vars.AWS_REGION || 'eu-west-3' }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -44,7 +44,7 @@ jobs:
           terraform init \
             -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
             -backend-config="key=lambdator/terraform.tfstate" \
-            -backend-config="region=${{ vars.AWS_REGION || 'us-east-1' }}" \
+            -backend-config="region=${{ vars.AWS_REGION || 'eu-west-3' }}" \
             -backend-config="dynamodb_table=${{ vars.TF_STATE_LOCK_TABLE }}"
 
       - name: Terraform plan
@@ -52,7 +52,7 @@ jobs:
         run: terraform plan -out=tfplan
         env:
           TF_VAR_discord_public_key: ${{ secrets.DISCORD_PUBLIC_KEY }}
-          TF_VAR_aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
+          TF_VAR_aws_region: ${{ vars.AWS_REGION || 'eu-west-3' }}
 
       - name: Terraform apply
         working-directory: terraform
