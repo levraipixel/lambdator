@@ -21,6 +21,21 @@ const commands = [
     name: 'hello',
     description: 'Say hello to Lambdator',
   },
+  {
+    name: 'helloasso',
+    description: 'Interact with the HelloAsso API',
+    options: [
+      {
+        name: 'action',
+        description: 'Action to perform',
+        type: 3, // STRING
+        required: true,
+        choices: [
+          { name: 'info — Get organization information', value: 'info' },
+        ],
+      },
+    ],
+  },
 ];
 
 const url = `https://discord.com/api/v10/applications/${APP_ID}/commands`;

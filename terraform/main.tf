@@ -49,7 +49,10 @@ resource "aws_lambda_function" "bot" {
 
   environment {
     variables = {
-      DISCORD_PUBLIC_KEY = var.discord_public_key
+      DISCORD_PUBLIC_KEY          = var.discord_public_key
+      HELLOASSO_CLIENT_ID         = var.helloasso_client_id
+      HELLOASSO_CLIENT_SECRET     = var.helloasso_client_secret
+      HELLOASSO_ORGANIZATION_SLUG = var.helloasso_organization_slug
     }
   }
 }

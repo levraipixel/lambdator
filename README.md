@@ -12,24 +12,32 @@ Interactions flow through an HTTP API Gateway endpoint into a Lambda function. T
 lambdator/
 ├── lambda/
 │   ├── index.mjs                  # Lambda handler — signature verification + command routing
-│   └── package.json               # Runtime dependency: discord-interactions
+│   ├── helloasso.mjs              # HelloAsso OAuth2 client and API calls
+│   └── package.json               # Runtime dependencies
 ├── scripts/
 │   └── register-commands.mjs      # One-shot script to register slash commands with Discord
 ├── terraform/
 │   ├── bootstrap/
-│   │   └── main.tf                # Creates the S3 bucket + DynamoDB table for Terraform state
+│   │   └── main.tf                # Creates S3 bucket, DynamoDB table, and GitHub Actions IAM role
 │   ├── main.tf                    # Core infra: Lambda, IAM role, HTTP API Gateway
 │   ├── providers.tf               # AWS + archive providers, S3 remote backend declaration
-│   ├── variables.tf               # Input variables (region, project name, Discord public key)
+│   ├── variables.tf               # Input variables (region, project name, secrets)
 │   └── outputs.tf                 # Prints the Interactions Endpoint URL after deploy
 └── .github/workflows/
     └── deploy.yml                 # CI: install deps → terraform apply → register commands
 ```
 
+### Available commands
+
+| Command | Options | Description |
+|---|---|---|
+| `/hello` | — | Greets the user |
+| `/helloasso` | `action: info` | Fetches and displays organization information from the HelloAsso API |
+
 ### Request flow
 
 ```
-User types /hello in Discord
+User types a slash command in Discord
         │
         ▼
 Discord POSTs to API Gateway  (POST /discord)
@@ -54,6 +62,7 @@ Discord displays the bot reply in the channel
 - [Node.js](https://nodejs.org) ≥ 20
 - AWS CLI configured with credentials that can create IAM, Lambda, API Gateway, S3, and DynamoDB resources
 - A Discord application created at [discord.com/developers](https://discord.com/developers/applications)
+- A HelloAsso application with OAuth2 credentials
 
 ### 2. Create the Terraform state backend
 
@@ -65,7 +74,7 @@ terraform init
 terraform apply -var="github_repo=your-org/lambdator"
 ```
 
-Note the three output values — you will need them in step 4:
+Note the three output values — you will need them in step 3:
 
 ```
 tf_state_bucket         = "lambdator-tf-state"
@@ -75,7 +84,7 @@ github_actions_role_arn = "arn:aws:iam::123456789:role/lambdator-github-actions"
 
 ### 3. Configure GitHub repository settings
 
-In your GitHub repository go to **Settings → Secrets and variables → Actions** and add the following.
+In your GitHub repository go to **Settings → Secrets and variables → Actions**, select the `R-B` environment, and add the following.
 
 **Secrets:**
 
@@ -85,6 +94,8 @@ In your GitHub repository go to **Settings → Secrets and variables → Actions
 | `DISCORD_PUBLIC_KEY` | Discord Developer Portal → your app → General Information |
 | `DISCORD_APP_ID` | Discord Developer Portal → your app → General Information |
 | `DISCORD_BOT_TOKEN` | Discord Developer Portal → your app → Bot → Reset Token |
+| `HELLOASSO_CLIENT_ID` | HelloAsso developer portal → your application |
+| `HELLOASSO_CLIENT_SECRET` | HelloAsso developer portal → your application |
 
 **Variables:**
 
@@ -93,6 +104,7 @@ In your GitHub repository go to **Settings → Secrets and variables → Actions
 | `AWS_REGION` | `eu-west-3` |
 | `TF_STATE_BUCKET` | `lambdator-tf-state` (from step 2) |
 | `TF_STATE_LOCK_TABLE` | `lambdator-tf-lock` (from step 2) |
+| `HELLOASSO_ORGANIZATION_SLUG` | `my-organization` |
 
 > **IAM role for GitHub Actions**
 > The CI workflow uses OIDC — no long-lived access keys are stored in GitHub. The role and its OIDC trust policy are created automatically by the bootstrap step above.
@@ -103,7 +115,7 @@ Push to `main` (or trigger the workflow manually via **Actions → Deploy → Ru
 
 1. Install Lambda runtime dependencies
 2. Run `terraform apply` to create all AWS resources
-3. Register the `/hello` slash command with Discord
+3. Register slash commands with Discord
 4. Print the **Interactions Endpoint URL**
 
 ### 5. Register the endpoint with Discord
@@ -120,7 +132,7 @@ Click **Save Changes**. Discord will send a `PING` to verify the endpoint before
 
 ### Updating bot logic
 
-Edit [lambda/index.mjs](lambda/index.mjs), commit, and push to `main`. The CI workflow runs automatically and redeploys the Lambda function with the new code.
+Edit [lambda/index.mjs](lambda/index.mjs) or [lambda/helloasso.mjs](lambda/helloasso.mjs), commit, and push to `main`. The CI workflow runs automatically and redeploys the Lambda function with the new code.
 
 ### Adding a new slash command
 
@@ -129,6 +141,13 @@ Edit [lambda/index.mjs](lambda/index.mjs), commit, and push to `main`. The CI wo
 3. Commit and push to `main`.
 
 The CI workflow will deploy the new handler and re-register all commands with Discord in one step. Global command propagation can take up to one hour.
+
+### Adding a new HelloAsso action
+
+1. Export a new function from [lambda/helloasso.mjs](lambda/helloasso.mjs).
+2. Add a new `if (action === '...')` branch in the `helloasso` command handler in [lambda/index.mjs](lambda/index.mjs).
+3. Add a new entry to the `choices` array for the `action` option in [scripts/register-commands.mjs](scripts/register-commands.mjs).
+4. Commit and push to `main`.
 
 ### Updating infrastructure
 

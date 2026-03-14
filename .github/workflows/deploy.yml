@@ -53,6 +53,9 @@ jobs:
         run: terraform plan -out=tfplan
         env:
           TF_VAR_discord_public_key: ${{ secrets.DISCORD_PUBLIC_KEY }}
+          TF_VAR_helloasso_client_id: ${{ secrets.HELLOASSO_CLIENT_ID }}
+          TF_VAR_helloasso_client_secret: ${{ secrets.HELLOASSO_CLIENT_SECRET }}
+          TF_VAR_helloasso_organization_slug: ${{ vars.HELLOASSO_ORGANIZATION_SLUG }}
           TF_VAR_aws_region: ${{ vars.AWS_REGION || 'eu-west-3' }}
 
       - name: Terraform apply
