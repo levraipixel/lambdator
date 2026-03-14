@@ -1,6 +1,6 @@
 output "discord_interactions_url" {
   description = "Paste this URL into the Discord Developer Portal → Interactions Endpoint URL"
-  value       = "${aws_apigatewayv2_stage.default.invoke_url}/discord"
+  value       = "${aws_apigatewayv2_stage.default.invoke_url}discord"
 }
 
 output "lambda_function_name" {
