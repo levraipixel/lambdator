@@ -3,7 +3,12 @@
   "version": "1.0.0",
   "description": "Serverless Discord bot Lambda handler",
   "type": "module",
+  "devDependencies": {
+    "better-sqlite3": "^11.0.0"
+  },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/lib-dynamodb": "^3.0.0",
     "discord-interactions": "^3.4.0",
     "helloasso-node": "^1.0.7",
     "simple-oauth2": "^5.1.0"

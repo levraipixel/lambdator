@@ -53,8 +53,37 @@ resource "aws_lambda_function" "bot" {
       HELLOASSO_CLIENT_ID         = var.helloasso_client_id
       HELLOASSO_CLIENT_SECRET     = var.helloasso_client_secret
       HELLOASSO_ORGANIZATION_SLUG = var.helloasso_organization_slug
+      DYNAMODB_TABLE_NAME         = aws_dynamodb_table.membership_orders.name
     }
   }
+}
+
+# ---------------------------------------------------------------------------
+# DynamoDB — membership orders store
+# ---------------------------------------------------------------------------
+resource "aws_dynamodb_table" "membership_orders" {
+  name         = "${var.project_name}-membership-orders"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "id"
+
+  attribute {
+    name = "id"
+    type = "S"
+  }
+}
+
+resource "aws_iam_role_policy" "lambda_dynamodb" {
+  name = "${var.project_name}-lambda-dynamodb"
+  role = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["dynamodb:PutItem", "dynamodb:Scan"]
+      Resource = aws_dynamodb_table.membership_orders.arn
+    }]
+  })
 }
 
 # ---------------------------------------------------------------------------

@@ -32,6 +32,29 @@ const getAccessToken = async () => {
   return accessToken;
 };
 
+export const getLastMembershipOrders = async (from) => {
+  const defaultClient = helloasso.ApiClient.instance;
+
+  const OAuth2 = defaultClient.authentications['OAuth2'];
+  OAuth2.accessToken = await getAccessToken();
+
+  const apiInstance = new helloasso.CommandesApi();
+  return new Promise((resolve, reject) => {
+    apiInstance.organizationsOrganizationSlugOrdersGet(
+      ORGANIZATION_SLUG,
+      { from: from.toISOString(), formTypes: ['Membership'], pageSize: 100 },
+      (error, data, response) => {
+        if (error) {
+          console.error('Error getting orders:', error);
+          reject(error);
+        } else {
+          resolve((data ?? response.body)?.data ?? []);
+        }
+      }
+    );
+  });
+};
+
 export const getOrganizationDetails = async () => {
   const defaultClient = helloasso.ApiClient.instance;
 

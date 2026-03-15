@@ -1,5 +1,6 @@
 import { verifyKey, InteractionType, InteractionResponseType } from 'discord-interactions';
-import { getOrganizationDetails } from './helloasso.mjs';
+import { getOrganizationDetails, getLastMembershipOrders } from './helloasso.mjs';
+import { upsertOrder, getRecentOrders } from './dynamodb.mjs';
 
 const respond = (content) => ({
   statusCode: 200,
@@ -54,6 +55,27 @@ export const handler = async (event) => {
           return respond(`\`\`\`json\n${truncated}\n\`\`\``);
         } catch (error) {
           return respond(`❌ Failed to fetch organization info: ${error.message}`);
+        }
+      }
+
+      if (action === 'refresh') {
+        try {
+          const from = new Date();
+          from.setDate(from.getDate() - 30);
+
+          const orders = await getLastMembershipOrders(from);
+          await Promise.all(orders.map(upsertOrder));
+
+          const recent = await getRecentOrders(5);
+          const lines = recent.map((o) => {
+            const d = new Date(o.date);
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            return `- ${day}/${month}/${d.getFullYear()}: ${o.firstName} ${o.lastName}`;
+          });
+          return respond(lines.join('\n'));
+        } catch (error) {
+          return respond(`❌ Failed to refresh: ${error.message}`);
         }
       }
     }

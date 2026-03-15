@@ -16,5 +16,8 @@ dist/
 # Local env
 .env
 
+# Local DynamoDB mock database
+.lambdator-local.db
+
 # OS
 .DS_Store
