@@ -3,7 +3,10 @@ import { getOrganizationDetails, getLastMembershipOrders, getAllMembershipOrders
 import { upsertOrder, getAllOrders, getRecentOrders } from './dynamodb.mjs';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
-const lambdaClient = new LambdaClient({});
+const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION });
+// Eagerly resolve IAM credentials during cold start so the first handler
+// invocation doesn't pay the IMDS latency cost inside the 3s Discord window.
+lambdaClient.config.credentials().catch(() => {});
 
 const formatDate = (dateStr) => {
   const d = new Date(dateStr);
@@ -142,10 +145,10 @@ export const handler = async (event) => {
           }
         }
 
-        // In production: ACK immediately, do the work asynchronously.
-        // Do NOT await — we need to return deferResponse() before Discord's 3s deadline.
-        // Lambda's event loop stays alive long enough for the HTTP request to complete.
-        lambdaClient.send(
+        // In production: trigger the async work, then ACK Discord.
+        // Credentials are pre-warmed at module init so this only pays for the
+        // HTTP round-trip to Lambda API (~200ms), staying well within the 3s deadline.
+        await lambdaClient.send(
           new InvokeCommand({
             FunctionName: process.env.AWS_LAMBDA_FUNCTION_NAME,
             InvocationType: 'Event',
@@ -157,7 +160,8 @@ export const handler = async (event) => {
               })
             ),
           })
-        ).catch((err) => console.error('Failed to trigger async refreshAll:', err));
+        );
+        console.log('Async refreshAll invoked');
         return deferResponse();
       }
 
