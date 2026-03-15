@@ -223,6 +223,15 @@ export const handler = async (event) => {
       return respond('Hello! I am Lambdator, your serverless Discord bot powered by AWS Lambda! 🚀');
     }
 
+    if (name === 'config') {
+      const allowedIds = (process.env.ALLOWED_DISCORD_USER_IDS ?? '').split(',').map((id) => id.trim()).filter(Boolean);
+      const usersLine = allowedIds.length > 0
+        ? allowedIds.map((id) => `<@${id}>`).join(', ')
+        : '_everyone (no restriction set)_';
+      const slug = process.env.HELLOASSO_ORGANIZATION_SLUG || '_not set_';
+      return respondEphemeral(`**Bot configuration**\n- **Allowed users:** ${usersLine}\n- **HelloAsso organization:** \`${slug}\``);
+    }
+
     if (name === 'helloasso') {
       const action = options?.find((o) => o.name === 'action')?.value;
 

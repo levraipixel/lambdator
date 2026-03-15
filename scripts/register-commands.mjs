@@ -66,6 +66,10 @@ const commands = [
       },
     ],
   },
+  {
+    name: 'config',
+    description: 'Show bot configuration',
+  },
   // Message context menu command
   {
     name: 'Remind me in 1 hour',
