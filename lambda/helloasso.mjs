@@ -79,6 +79,7 @@ export const getAllMembershipOrders = async () => {
     if (page.length === 0) break;
     orders.push(...page);
     continuationToken = result?.pagination?.continuationToken;
+    console.log(`getAllMembershipOrders: fetched ${orders.length} orders so far (page size: ${page.length})`);
   } while (continuationToken);
 
   return orders;

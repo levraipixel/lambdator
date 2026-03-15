@@ -1,6 +1,9 @@
 import { verifyKey, InteractionType, InteractionResponseType } from 'discord-interactions';
 import { getOrganizationDetails, getLastMembershipOrders, getAllMembershipOrders } from './helloasso.mjs';
 import { upsertOrder, getAllOrders, getRecentOrders } from './dynamodb.mjs';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
+
+const lambdaClient = new LambdaClient({});
 
 const formatDate = (dateStr) => {
   const d = new Date(dateStr);
@@ -28,7 +31,59 @@ const respond = (content) => ({
   }),
 });
 
+const deferResponse = () => ({
+  statusCode: 200,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+  }),
+});
+
+const editOriginalResponse = async (applicationId, token, content) => {
+  const url = `https://discord.com/api/v10/webhooks/${applicationId}/${token}/messages/@original`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) {
+    throw new Error(`Discord webhook error: ${res.status} ${await res.text()}`);
+  }
+};
+
+const runRefreshAll = async () => {
+  console.log('refreshAll: fetching all membership orders from HelloAsso...');
+  const orders = await getAllMembershipOrders();
+  console.log(`refreshAll: fetched ${orders.length} orders, upserting into DynamoDB...`);
+  const results = await Promise.all(orders.map(upsertOrder));
+  const newOrders = orders.filter((_, i) => results[i]);
+  console.log(`refreshAll: ${newOrders.length} new orders inserted`);
+
+  if (newOrders.length === 0) return '0 new members added.';
+
+  const lines = newOrders.map(formatApiOrderLine);
+  const truncated = lines.join('\n').slice(0, 1950);
+  return `${newOrders.length} new member(s) added:\n${truncated}`;
+};
+
 export const handler = async (event) => {
+  console.log('Received event:', JSON.stringify(event));
+
+  // Async self-invocation: perform the actual refreshAll work and call Discord's webhook
+  if (event.asyncTask === 'refreshAll') {
+    console.log('Running async task: refreshAll');
+    const { applicationId, token } = event;
+    try {
+      const content = await runRefreshAll();
+      console.log('refreshAll complete, editing Discord response');
+      await editOriginalResponse(applicationId, token, content);
+    } catch (error) {
+      console.error('refreshAll failed:', error);
+      await editOriginalResponse(applicationId, token, `❌ Failed to refresh all: ${error.message}`);
+    }
+    return { statusCode: 200 };
+  }
+
   const signature = event.headers['x-signature-ed25519'];
   const timestamp = event.headers['x-signature-timestamp'];
   const rawBody = event.body ?? '';
@@ -55,6 +110,8 @@ export const handler = async (event) => {
   // Slash command handling
   if (interaction.type === InteractionType.APPLICATION_COMMAND) {
     const { name, options } = interaction.data;
+    const args = options?.map((o) => `${o.name}=${o.value}`).join(', ') ?? '';
+    console.log(`Command: /${name}${args ? ` (${args})` : ''}`);
 
     if (name === 'hello') {
       return respond('Hello! I am Lambdator, your serverless Discord bot powered by AWS Lambda! 🚀');
@@ -76,23 +133,30 @@ export const handler = async (event) => {
       }
 
       if (action === 'refreshAll') {
-        try {
-          const orders = await getAllMembershipOrders();
-          const results = await Promise.all(orders.map(upsertOrder));
-          const newOrders = orders.filter((_, i) => results[i]);
-
-          if (newOrders.length === 0) {
-            return respond('0 new members added.');
+        // In local dev mode, run synchronously (no Lambda to invoke)
+        if (process.env.LOCAL_MODE === 'true') {
+          try {
+            return respond(await runRefreshAll());
+          } catch (error) {
+            return respond(`❌ Failed to refresh all: ${error.message}`);
           }
-
-          const lines = newOrders.map((o) => {
-            return formatApiOrderLine(o);
-          });
-          const truncated = lines.join('\n').slice(0, 1950);
-          return respond(`${newOrders.length} new member(s) added:\n${truncated}`);
-        } catch (error) {
-          return respond(`❌ Failed to refresh all: ${error.message}`);
         }
+
+        // In production: ACK immediately, do the work asynchronously
+        await lambdaClient.send(
+          new InvokeCommand({
+            FunctionName: process.env.AWS_LAMBDA_FUNCTION_NAME,
+            InvocationType: 'Event',
+            Payload: Buffer.from(
+              JSON.stringify({
+                asyncTask: 'refreshAll',
+                applicationId: interaction.application_id,
+                token: interaction.token,
+              })
+            ),
+          })
+        );
+        return deferResponse();
       }
 
       if (action === 'list') {

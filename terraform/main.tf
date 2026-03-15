@@ -44,7 +44,7 @@ resource "aws_lambda_function" "bot" {
   handler          = "index.handler"
   filename         = data.archive_file.lambda.output_path
   source_code_hash = data.archive_file.lambda.output_base64sha256
-  timeout          = 10
+  timeout          = 30
   memory_size      = 128
 
   environment {
@@ -82,6 +82,20 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
       Effect   = "Allow"
       Action   = ["dynamodb:PutItem", "dynamodb:Scan"]
       Resource = aws_dynamodb_table.membership_orders.arn
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "lambda_self_invoke" {
+  name = "${var.project_name}-lambda-self-invoke"
+  role = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["lambda:InvokeFunction"]
+      Resource = aws_lambda_function.bot.arn
     }]
   })
 }
