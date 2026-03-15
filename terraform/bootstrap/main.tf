@@ -222,6 +222,12 @@ resource "aws_iam_role_policy" "github_actions" {
         ]
         Resource = aws_dynamodb_table.tf_state_lock.arn
       },
+      {
+        Sid    = "Scheduler"
+        Effect = "Allow"
+        Action = ["scheduler:*"]
+        Resource = "arn:aws:scheduler:${var.aws_region}:*:schedule/*/${var.project_name}*"
+      },
     ]
   })
 }
