@@ -142,8 +142,10 @@ export const handler = async (event) => {
           }
         }
 
-        // In production: ACK immediately, do the work asynchronously
-        await lambdaClient.send(
+        // In production: ACK immediately, do the work asynchronously.
+        // Do NOT await — we need to return deferResponse() before Discord's 3s deadline.
+        // Lambda's event loop stays alive long enough for the HTTP request to complete.
+        lambdaClient.send(
           new InvokeCommand({
             FunctionName: process.env.AWS_LAMBDA_FUNCTION_NAME,
             InvocationType: 'Event',
@@ -155,7 +157,7 @@ export const handler = async (event) => {
               })
             ),
           })
-        );
+        ).catch((err) => console.error('Failed to trigger async refreshAll:', err));
         return deferResponse();
       }
 
