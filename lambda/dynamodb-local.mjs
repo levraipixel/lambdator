@@ -11,14 +11,15 @@ db.exec(`
     firstName    TEXT NOT NULL,
     lastName     TEXT NOT NULL,
     amount       INTEGER NOT NULL,
+    email        TEXT,
     apiResponse  TEXT
   )
 `);
 
 export const upsertOrder = async (order) => {
   const stmt = db.prepare(`
-    INSERT OR IGNORE INTO membership_orders (id, date, firstName, lastName, amount, apiResponse)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT OR IGNORE INTO membership_orders (id, date, firstName, lastName, amount, email, apiResponse)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
   const result = stmt.run(
     String(order.id),
@@ -26,6 +27,7 @@ export const upsertOrder = async (order) => {
     order.payer.firstName,
     order.payer.lastName,
     order.amount.total,
+    order.payer.email,
     JSON.stringify(order),
   );
   return result.changes > 0;
