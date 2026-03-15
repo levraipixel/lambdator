@@ -2,11 +2,21 @@ import { verifyKey, InteractionType, InteractionResponseType } from 'discord-int
 import { getOrganizationDetails, getLastMembershipOrders, getAllMembershipOrders } from './helloasso.mjs';
 import { upsertOrder, getAllOrders, getRecentOrders } from './dynamodb.mjs';
 
-const formatOrderLine = (o) => {
-  const d = new Date(o.date);
+const formatDate = (dateStr) => {
+  const d = new Date(dateStr);
   const day = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');
-  return `- ${day}/${month}/${d.getFullYear()}: ${o.firstName} ${o.lastName}`;
+  return `${day}/${month}/${d.getFullYear()}`;
+};
+
+// For DB records (flat fields)
+const formatOrderLine = (o) =>
+  `- ${formatDate(o.date)}: ${o.pseudo} (${o.firstName} ${o.lastName})`;
+
+// For raw HelloAsso API objects (nested fields, withDetails)
+const formatApiOrderLine = (o) => {
+  const pseudo = o.items?.[0]?.customFields?.find((f) => f.name === 'Pseudo')?.answer ?? '?';
+  return `- ${formatDate(o.date)}: ${pseudo} (${o.payer.firstName} ${o.payer.lastName})`;
 };
 
 const respond = (content) => ({
@@ -76,10 +86,7 @@ export const handler = async (event) => {
           }
 
           const lines = newOrders.map((o) => {
-            const d = new Date(o.date);
-            const day = String(d.getDate()).padStart(2, '0');
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            return `- ${day}/${month}/${d.getFullYear()}: ${o.payer.firstName} ${o.payer.lastName}`;
+            return formatApiOrderLine(o);
           });
           const truncated = lines.join('\n').slice(0, 1950);
           return respond(`${newOrders.length} new member(s) added:\n${truncated}`);
@@ -155,10 +162,7 @@ export const handler = async (event) => {
           }
 
           const lines = newOrders.map((o) => {
-            const d = new Date(o.date);
-            const day = String(d.getDate()).padStart(2, '0');
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            return `- ${day}/${month}/${d.getFullYear()}: ${o.payer.firstName} ${o.payer.lastName}`;
+            return formatApiOrderLine(o);
           });
           const truncated = lines.join('\n').slice(0, 1950);
           return respond(`${newOrders.length} new member(s) added:\n${truncated}`);
