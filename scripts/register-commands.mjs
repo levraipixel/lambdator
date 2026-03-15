@@ -70,6 +70,22 @@ const commands = [
     name: 'config',
     description: 'Show bot configuration',
   },
+  {
+    name: 'saved',
+    description: 'Manage your saved messages',
+    options: [
+      {
+        name: 'action',
+        description: 'Action to perform',
+        type: 3, // STRING
+        required: true,
+        choices: [
+          { name: 'list — Show your saved messages', value: 'list' },
+          { name: 'clear — Delete all your saved messages', value: 'clear' },
+        ],
+      },
+    ],
+  },
   // Message context menu commands
   {
     name: 'Remind me in 1 hour',
@@ -81,6 +97,10 @@ const commands = [
   },
   {
     name: 'Remind me on specific date',
+    type: 3, // MESSAGE
+  },
+  {
+    name: 'Save for later',
     type: 3, // MESSAGE
   },
 ];

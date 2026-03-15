@@ -11,7 +11,7 @@ db.exec(`
     messageId  TEXT NOT NULL,
     channelId  TEXT NOT NULL,
     guildId    TEXT,
-    remindAt   TEXT NOT NULL
+    remindAt   TEXT
   )
 `);
 
@@ -29,7 +29,7 @@ export const getAllReminders = async () => {
 };
 
 export const getDueReminders = async (now) => {
-  return db.prepare(`SELECT * FROM reminders WHERE remindAt <= ?`).all(now.toISOString());
+  return db.prepare(`SELECT * FROM reminders WHERE remindAt IS NOT NULL AND remindAt <= ?`).all(now.toISOString());
 };
 
 export const deleteReminder = async (id) => {

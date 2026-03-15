@@ -20,7 +20,7 @@ export const getAllReminders = async () => {
 
 export const getDueReminders = async (now) => {
   const result = await client.send(new ScanCommand({ TableName: TABLE }));
-  return result.Items.filter((r) => r.remindAt <= now.toISOString());
+  return result.Items.filter((r) => r.remindAt && r.remindAt <= now.toISOString());
 };
 
 export const deleteReminder = async (id) => {
