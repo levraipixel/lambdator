@@ -1,6 +1,6 @@
 import { verifyKey, InteractionType, InteractionResponseType } from 'discord-interactions';
-import { getOrganizationDetails, getLastMembershipOrders } from './helloasso.mjs';
-import { upsertOrder, getRecentOrders } from './dynamodb.mjs';
+import { getOrganizationDetails, getLastMembershipOrders, getAllMembershipOrders } from './helloasso.mjs';
+import { upsertOrder } from './dynamodb.mjs';
 
 const respond = (content) => ({
   statusCode: 200,
@@ -58,22 +58,50 @@ export const handler = async (event) => {
         }
       }
 
+      if (action === 'refreshAll') {
+        try {
+          const orders = await getAllMembershipOrders();
+          const results = await Promise.all(orders.map(upsertOrder));
+          const newOrders = orders.filter((_, i) => results[i]);
+
+          if (newOrders.length === 0) {
+            return respond('0 new members added.');
+          }
+
+          const lines = newOrders.map((o) => {
+            const d = new Date(o.date);
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            return `- ${day}/${month}/${d.getFullYear()}: ${o.payer.firstName} ${o.payer.lastName}`;
+          });
+          const truncated = lines.join('\n').slice(0, 1950);
+          return respond(`${newOrders.length} new member(s) added:\n${truncated}`);
+        } catch (error) {
+          return respond(`❌ Failed to refresh all: ${error.message}`);
+        }
+      }
+
       if (action === 'refresh') {
         try {
           const from = new Date();
           from.setDate(from.getDate() - 30);
 
           const orders = await getLastMembershipOrders(from);
-          await Promise.all(orders.map(upsertOrder));
+          const results = await Promise.all(orders.map(upsertOrder));
+          const newOrders = orders.filter((_, i) => results[i]);
 
-          const recent = await getRecentOrders(5);
-          const lines = recent.map((o) => {
+          if (newOrders.length === 0) {
+            return respond('0 new members added.');
+          }
+
+          const lines = newOrders.map((o) => {
             const d = new Date(o.date);
             const day = String(d.getDate()).padStart(2, '0');
             const month = String(d.getMonth() + 1).padStart(2, '0');
-            return `- ${day}/${month}/${d.getFullYear()}: ${o.firstName} ${o.lastName}`;
+            return `- ${day}/${month}/${d.getFullYear()}: ${o.payer.firstName} ${o.payer.lastName}`;
           });
-          return respond(lines.join('\n'));
+          const truncated = lines.join('\n').slice(0, 1950);
+          return respond(`${newOrders.length} new member(s) added:\n${truncated}`);
         } catch (error) {
           return respond(`❌ Failed to refresh: ${error.message}`);
         }

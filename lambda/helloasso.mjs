@@ -32,27 +32,54 @@ const getAccessToken = async () => {
   return accessToken;
 };
 
+const fetchOrdersPage = (apiInstance, opts) =>
+  new Promise((resolve, reject) => {
+    apiInstance.organizationsOrganizationSlugOrdersGet(
+      ORGANIZATION_SLUG,
+      opts,
+      (error, data, response) => {
+        if (error) reject(error);
+        else resolve(data ?? response.body);
+      }
+    );
+  });
+
 export const getLastMembershipOrders = async (from) => {
   const defaultClient = helloasso.ApiClient.instance;
-
   const OAuth2 = defaultClient.authentications['OAuth2'];
   OAuth2.accessToken = await getAccessToken();
 
   const apiInstance = new helloasso.CommandesApi();
-  return new Promise((resolve, reject) => {
-    apiInstance.organizationsOrganizationSlugOrdersGet(
-      ORGANIZATION_SLUG,
-      { from: from.toISOString(), formTypes: ['Membership'], pageSize: 100 },
-      (error, data, response) => {
-        if (error) {
-          console.error('Error getting orders:', error);
-          reject(error);
-        } else {
-          resolve((data ?? response.body)?.data ?? []);
-        }
-      }
-    );
+  const result = await fetchOrdersPage(apiInstance, {
+    from: from.toISOString(),
+    formTypes: ['Membership'],
+    pageSize: 100,
   });
+  return result?.data ?? [];
+};
+
+export const getAllMembershipOrders = async () => {
+  const defaultClient = helloasso.ApiClient.instance;
+  const OAuth2 = defaultClient.authentications['OAuth2'];
+  OAuth2.accessToken = await getAccessToken();
+
+  const apiInstance = new helloasso.CommandesApi();
+  const orders = [];
+  let continuationToken;
+
+  do {
+    const result = await fetchOrdersPage(apiInstance, {
+      formTypes: ['Membership'],
+      pageSize: 100,
+      ...(continuationToken && { continuationToken }),
+    });
+    const page = result?.data ?? [];
+    if (page.length === 0) break;
+    orders.push(...page);
+    continuationToken = result?.pagination?.continuationToken;
+  } while (continuationToken);
+
+  return orders;
 };
 
 export const getOrganizationDetails = async () => {

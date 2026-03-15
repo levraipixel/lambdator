@@ -32,7 +32,8 @@ const commands = [
         required: true,
         choices: [
           { name: 'info — Get organization information', value: 'info' },
-          { name: 'refresh — Sync membership orders and show the 5 most recent', value: 'refresh' },
+          { name: 'refresh — Sync last 30 days membership orders and show new additions', value: 'refresh' },
+          { name: 'refreshAll — Sync all-time membership orders and show new additions', value: 'refreshAll' },
         ],
       },
     ],
