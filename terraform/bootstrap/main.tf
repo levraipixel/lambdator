@@ -207,18 +207,9 @@ resource "aws_iam_role_policy" "github_actions" {
         ]
       },
       {
-        Sid    = "DynamoDbTables"
-        Effect = "Allow"
-        Action = [
-          "dynamodb:CreateTable",
-          "dynamodb:DescribeTable",
-          "dynamodb:DeleteTable",
-          "dynamodb:TagResource",
-          "dynamodb:UntagResource",
-          "dynamodb:ListTagsOfResource",
-          "dynamodb:PutItem",
-          "dynamodb:Scan",
-        ]
+        Sid      = "DynamoDbTables"
+        Effect   = "Allow"
+        Action   = ["dynamodb:*"]
         Resource = "arn:aws:dynamodb:${var.aws_region}:*:table/${var.project_name}*"
       },
       {
