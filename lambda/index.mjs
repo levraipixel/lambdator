@@ -10,6 +10,23 @@ const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION });
 // invocation doesn't pay the IMDS latency cost inside the 3s Discord window.
 lambdaClient.config.credentials().catch(() => {});
 
+// Returns the UTC offset in minutes for an IANA timezone at a given date (positive = east of UTC).
+// Uses Intl to reconstruct the local wall-clock time and diff against UTC — handles DST correctly.
+const getTimezoneOffsetMinutes = (timezone, date) => {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(date).map((p) => [p.type, p.value]));
+  const tzLocal = new Date(Date.UTC(
+    parseInt(parts.year), parseInt(parts.month) - 1, parseInt(parts.day),
+    parseInt(parts.hour) % 24, parseInt(parts.minute), parseInt(parts.second),
+  ));
+  return (tzLocal - date) / 60000;
+};
+
 const formatDate = (dateStr) => {
   const d = new Date(dateStr);
   const day = String(d.getDate()).padStart(2, '0');
@@ -190,9 +207,10 @@ export const handler = async (event) => {
     }
 
     if (name === 'Remind me tomorrow') {
-      const tomorrow = new Date();
-      tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-      tomorrow.setUTCHours(9, 0, 0, 0);
+      const naive = new Date();
+      naive.setUTCDate(naive.getUTCDate() + 1);
+      naive.setUTCHours(9, 0, 0, 0);
+      const tomorrow = new Date(naive.getTime() - getTimezoneOffsetMinutes('Europe/Paris', naive) * 60000);
       const remindAt = tomorrow.toISOString();
       await saveReminder({
         userId: interaction.member?.user?.id ?? interaction.user?.id,
@@ -251,10 +269,13 @@ export const handler = async (event) => {
         return respondEphemeral(`I couldn't understand "${dateValue}". Try something like "in 2 weeks", "June 6 at 10pm", or "2026-04-15".`);
       }
 
-      const remindAt = parsed.date();
+      const naiveDate = parsed.date();
       if (!parsed.start.isCertain('hour')) {
-        remindAt.setHours(9, 0, 0, 0);
+        naiveDate.setUTCHours(9, 0, 0, 0);
       }
+      // chrono parses times in the system timezone (UTC on Lambda), so shift to the user's timezone.
+      const remindAt = new Date(naiveDate.getTime() - getTimezoneOffsetMinutes(timezone, naiveDate) * 60000);
+
       if (remindAt <= now) {
         return respondEphemeral('Please provide a future date.');
       }
