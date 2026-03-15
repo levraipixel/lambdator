@@ -173,6 +173,9 @@ resource "aws_iam_role_policy" "github_actions" {
           "iam:ListRolePolicies",
           "iam:TagRole",
           "iam:UntagRole",
+          "iam:GetRolePolicy",
+          "iam:PutRolePolicy",
+          "iam:DeleteRolePolicy",
         ]
         Resource = "arn:aws:iam::*:role/${var.project_name}*"
       },
@@ -202,6 +205,21 @@ resource "aws_iam_role_policy" "github_actions" {
           aws_s3_bucket.tf_state.arn,
           "${aws_s3_bucket.tf_state.arn}/*",
         ]
+      },
+      {
+        Sid    = "DynamoDbTables"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:CreateTable",
+          "dynamodb:DescribeTable",
+          "dynamodb:DeleteTable",
+          "dynamodb:TagResource",
+          "dynamodb:UntagResource",
+          "dynamodb:ListTagsOfResource",
+          "dynamodb:PutItem",
+          "dynamodb:Scan",
+        ]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:*:table/${var.project_name}*"
       },
       {
         Sid    = "TfStateLock"
