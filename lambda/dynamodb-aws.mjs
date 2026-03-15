@@ -19,6 +19,7 @@ export const upsertOrder = async (order) => {
         lastName: order.payer.lastName,
         amount: order.amount.total,
         email: order.payer.email,
+        pseudo: order.items?.[0]?.customFields?.find((f) => f.name === 'Pseudo')?.answer ?? null,
         apiResponse: JSON.stringify(order),
       },
       ConditionExpression: 'attribute_not_exists(id)',

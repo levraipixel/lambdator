@@ -54,6 +54,7 @@ export const getLastMembershipOrders = async (from) => {
     from: from.toISOString(),
     formTypes: ['Membership'],
     pageSize: 100,
+    withDetails: true,
   });
   return result?.data ?? [];
 };
@@ -71,6 +72,7 @@ export const getAllMembershipOrders = async () => {
     const result = await fetchOrdersPage(apiInstance, {
       formTypes: ['Membership'],
       pageSize: 100,
+      withDetails: true,
       ...(continuationToken && { continuationToken }),
     });
     const page = result?.data ?? [];
