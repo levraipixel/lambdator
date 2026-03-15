@@ -18,6 +18,7 @@ export const upsertOrder = async (order) => {
         firstName: order.payer.firstName,
         lastName: order.payer.lastName,
         amount: order.amount.total,
+        apiResponse: JSON.stringify(order),
       },
       ConditionExpression: 'attribute_not_exists(id)',
     }));

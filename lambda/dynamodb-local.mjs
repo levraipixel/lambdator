@@ -6,18 +6,19 @@ const db = new Database(join(process.cwd(), '.lambdator-local.db'));
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS membership_orders (
-    id        TEXT PRIMARY KEY,
-    date      TEXT NOT NULL,
-    firstName TEXT NOT NULL,
-    lastName  TEXT NOT NULL,
-    amount    INTEGER NOT NULL
+    id           TEXT PRIMARY KEY,
+    date         TEXT NOT NULL,
+    firstName    TEXT NOT NULL,
+    lastName     TEXT NOT NULL,
+    amount       INTEGER NOT NULL,
+    apiResponse  TEXT
   )
 `);
 
 export const upsertOrder = async (order) => {
   const stmt = db.prepare(`
-    INSERT OR IGNORE INTO membership_orders (id, date, firstName, lastName, amount)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT OR IGNORE INTO membership_orders (id, date, firstName, lastName, amount, apiResponse)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
   const result = stmt.run(
     String(order.id),
@@ -25,6 +26,7 @@ export const upsertOrder = async (order) => {
     order.payer.firstName,
     order.payer.lastName,
     order.amount.total,
+    JSON.stringify(order),
   );
   return result.changes > 0;
 };
