@@ -50,6 +50,27 @@ const commands = [
       },
     ],
   },
+  {
+    name: 'remind',
+    description: 'Manage your scheduled reminders',
+    options: [
+      {
+        name: 'action',
+        description: 'Action to perform',
+        type: 3, // STRING
+        required: true,
+        choices: [
+          { name: 'list — Show your scheduled reminders', value: 'list' },
+          { name: 'clear — Delete all your reminders', value: 'clear' },
+        ],
+      },
+    ],
+  },
+  // Message context menu command
+  {
+    name: 'Remind me in 1 hour',
+    type: 3, // MESSAGE
+  },
 ];
 
 const url = `https://discord.com/api/v10/applications/${APP_ID}/commands`;
@@ -71,4 +92,4 @@ if (!response.ok) {
 
 const registered = await response.json();
 console.log(`Successfully registered ${registered.length} command(s):`);
-registered.forEach((cmd) => console.log(`  /${cmd.name} — ${cmd.description}`));
+registered.forEach((cmd) => console.log(`  [type ${cmd.type ?? 1}] ${cmd.name}`));

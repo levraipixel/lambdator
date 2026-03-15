@@ -1,6 +1,7 @@
 import { verifyKey, InteractionType, InteractionResponseType } from 'discord-interactions';
 import { getOrganizationDetails, getLastMembershipOrders, getAllMembershipOrders } from './helloasso.mjs';
 import { upsertOrder, getAllOrders, getRecentOrders } from './dynamodb.mjs';
+import { saveReminder, getAllReminders, getDueReminders, deleteReminder } from './reminders.mjs';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
 const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION });
@@ -31,6 +32,15 @@ const respond = (content) => ({
   body: JSON.stringify({
     type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
     data: { content },
+  }),
+});
+
+const respondEphemeral = (content) => ({
+  statusCode: 200,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+    data: { content, flags: 64 },
   }),
 });
 
@@ -72,6 +82,46 @@ const runRefreshAll = async () => {
 export const handler = async (event) => {
   console.log('Received event:', JSON.stringify(event));
 
+  // Scheduled task: check for due reminders and send DMs
+  if (event.asyncTask === 'checkReminders') {
+    console.log('Running async task: checkReminders');
+    const now = new Date();
+    const due = await getDueReminders(now);
+    console.log(`checkReminders: ${due.length} due reminder(s)`);
+    await Promise.all(due.map(async (reminder) => {
+      try {
+        const guildPart = reminder.guildId ?? '@me';
+        const link = `https://discord.com/channels/${guildPart}/${reminder.channelId}/${reminder.messageId}`;
+        const dmRes = await fetch(`https://discord.com/api/v10/users/@me/channels`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bot ${process.env.DISCORD_BOT_TOKEN}`,
+          },
+          body: JSON.stringify({ recipient_id: reminder.userId }),
+        });
+        if (!dmRes.ok) throw new Error(`Failed to open DM: ${dmRes.status} ${await dmRes.text()}`);
+        const { id: dmChannelId } = await dmRes.json();
+
+        const msgRes = await fetch(`https://discord.com/api/v10/channels/${dmChannelId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bot ${process.env.DISCORD_BOT_TOKEN}`,
+          },
+          body: JSON.stringify({ content: `You asked me to remind you of ${link}` }),
+        });
+        if (!msgRes.ok) throw new Error(`Failed to send DM: ${msgRes.status} ${await msgRes.text()}`);
+
+        await deleteReminder(reminder.id);
+        console.log(`checkReminders: sent reminder ${reminder.id} to user ${reminder.userId}`);
+      } catch (err) {
+        console.error(`checkReminders: failed for reminder ${reminder.id}:`, err);
+      }
+    }));
+    return { statusCode: 200 };
+  }
+
   // Async self-invocation: perform the actual refreshAll work and call Discord's webhook
   if (event.asyncTask === 'refreshAll') {
     console.log('Running async task: refreshAll');
@@ -110,11 +160,52 @@ export const handler = async (event) => {
     };
   }
 
+  // Message context menu command handling (type 3 = MESSAGE)
+  if (interaction.type === InteractionType.APPLICATION_COMMAND && interaction.data.type === 3) {
+    const { name, target_id: messageId } = interaction.data;
+
+    if (name === 'Remind me in 1 hour') {
+      const remindAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      await saveReminder({
+        userId: interaction.member?.user?.id ?? interaction.user?.id,
+        messageId,
+        channelId: interaction.channel_id,
+        guildId: interaction.guild_id ?? null,
+        remindAt,
+      });
+      return respondEphemeral('Got it! I\'ll remind you about this message in 1 hour. ⏰');
+    }
+  }
+
   // Slash command handling
   if (interaction.type === InteractionType.APPLICATION_COMMAND) {
     const { name, options } = interaction.data;
     const args = options?.map((o) => `${o.name}=${o.value}`).join(', ') ?? '';
     console.log(`Command: /${name}${args ? ` (${args})` : ''}`);
+
+    if (name === 'remind') {
+      const action = options?.find((o) => o.name === 'action')?.value;
+      const userId = interaction.member?.user?.id ?? interaction.user?.id;
+      const all = await getAllReminders();
+      const mine = all.filter((r) => r.userId === userId);
+
+      if (action === 'list') {
+        if (mine.length === 0) return respondEphemeral('You have no scheduled reminders.');
+        const lines = mine.map((r) => {
+          const guildPart = r.guildId ?? '@me';
+          const link = `https://discord.com/channels/${guildPart}/${r.channelId}/${r.messageId}`;
+          const ts = Math.floor(new Date(r.remindAt).getTime() / 1000);
+          return `- ${link} — <t:${ts}:R>`;
+        });
+        return respondEphemeral(`Your reminders:\n${lines.join('\n')}`);
+      }
+
+      if (action === 'clear') {
+        if (mine.length === 0) return respondEphemeral('You have no reminders to clear.');
+        await Promise.all(mine.map((r) => deleteReminder(r.id)));
+        return respondEphemeral(`Cleared ${mine.length} reminder(s).`);
+      }
+    }
 
     if (name === 'hello') {
       return respond('Hello! I am Lambdator, your serverless Discord bot powered by AWS Lambda! 🚀');

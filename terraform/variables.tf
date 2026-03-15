@@ -10,6 +10,12 @@ variable "discord_public_key" {
   sensitive   = true
 }
 
+variable "discord_bot_token" {
+  description = "Discord bot token used to send DMs"
+  type        = string
+  sensitive   = true
+}
+
 variable "helloasso_client_id" {
   description = "HelloAsso OAuth2 client ID"
   type        = string
