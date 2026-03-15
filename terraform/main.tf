@@ -56,6 +56,7 @@ resource "aws_lambda_function" "bot" {
       HELLOASSO_ORGANIZATION_SLUG = var.helloasso_organization_slug
       DYNAMODB_TABLE_NAME         = aws_dynamodb_table.membership_orders.name
       REMINDERS_TABLE_NAME        = aws_dynamodb_table.reminders.name
+      ALLOWED_DISCORD_USER_IDS    = var.allowed_discord_user_ids
     }
   }
 }

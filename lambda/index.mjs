@@ -160,6 +160,18 @@ export const handler = async (event) => {
     };
   }
 
+  // Authorization: restrict all commands except "hello" to allowed Discord user IDs
+  if (interaction.type === InteractionType.APPLICATION_COMMAND) {
+    const commandName = interaction.data.name;
+    if (commandName !== 'hello') {
+      const userId = interaction.member?.user?.id ?? interaction.user?.id;
+      const allowedIds = (process.env.ALLOWED_DISCORD_USER_IDS ?? '').split(',').map((id) => id.trim()).filter(Boolean);
+      if (allowedIds.length > 0 && !allowedIds.includes(userId)) {
+        return respondEphemeral('You are not authorized to use this command.');
+      }
+    }
+  }
+
   // Message context menu command handling (type 3 = MESSAGE)
   if (interaction.type === InteractionType.APPLICATION_COMMAND && interaction.data.type === 3) {
     const { name, target_id: messageId } = interaction.data;

@@ -33,6 +33,12 @@ variable "helloasso_organization_slug" {
   type        = string
 }
 
+variable "allowed_discord_user_ids" {
+  description = "Comma-separated list of Discord user IDs allowed to use protected commands (leave empty to allow everyone)"
+  type        = string
+  default     = ""
+}
+
 variable "project_name" {
   description = "Name prefix applied to all created resources"
   type        = string

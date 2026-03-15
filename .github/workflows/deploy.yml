@@ -58,6 +58,7 @@ jobs:
           TF_VAR_helloasso_client_secret: ${{ secrets.HELLOASSO_CLIENT_SECRET }}
           TF_VAR_helloasso_organization_slug: ${{ vars.HELLOASSO_ORGANIZATION_SLUG }}
           TF_VAR_aws_region: ${{ vars.AWS_REGION || 'eu-west-3' }}
+          TF_VAR_allowed_discord_user_ids: ${{ vars.ALLOWED_DISCORD_USER_IDS }}
 
       - name: Terraform apply
         working-directory: terraform
