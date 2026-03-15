@@ -30,12 +30,11 @@ export const upsertOrder = async (order) => {
   }
 };
 
-/**
- * Returns the most recent orders sorted by date descending.
- */
-export const getRecentOrders = async (limit = 5) => {
+export const getAllOrders = async () => {
   const result = await client.send(new ScanCommand({ TableName: TABLE }));
-  return result.Items
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, limit);
+  return result.Items.sort((a, b) => new Date(b.date) - new Date(a.date));
+};
+
+export const getRecentOrders = async (limit = 5) => {
+  return (await getAllOrders()).slice(0, limit);
 };

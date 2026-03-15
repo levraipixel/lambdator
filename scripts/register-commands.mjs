@@ -32,8 +32,20 @@ const commands = [
         required: true,
         choices: [
           { name: 'info — Get organization information', value: 'info' },
+          { name: 'list — List membership orders', value: 'list' },
           { name: 'refresh — Sync last 30 days membership orders and show new additions', value: 'refresh' },
           { name: 'refreshAll — Sync all-time membership orders and show new additions', value: 'refreshAll' },
+        ],
+      },
+      {
+        name: 'filter',
+        description: 'Filter for the list action',
+        type: 3, // STRING
+        required: false,
+        choices: [
+          { name: 'recent — 5 most recent orders', value: 'recent' },
+          { name: 'expired — Expired and not renewed', value: 'expired' },
+          { name: 'expiring — Expiring within the next month', value: 'expiring' },
         ],
       },
     ],

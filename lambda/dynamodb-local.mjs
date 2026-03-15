@@ -33,6 +33,10 @@ export const upsertOrder = async (order) => {
   return result.changes > 0;
 };
 
+export const getAllOrders = async () => {
+  return db.prepare(`SELECT * FROM membership_orders ORDER BY date DESC`).all();
+};
+
 export const getRecentOrders = async (limit = 5) => {
   return db
     .prepare(`SELECT * FROM membership_orders ORDER BY date DESC LIMIT ?`)

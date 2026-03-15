@@ -3,20 +3,27 @@
  * Requires Node.js >= 20 (uses --env-file flag).
  *
  * Usage:
- *   node --env-file=.env scripts/run-local.mjs <command> [action]
+ *   node --env-file=.env scripts/run-local.mjs <command> [action] [filter]
  *
  * Examples:
  *   node --env-file=.env scripts/run-local.mjs hello
  *   node --env-file=.env scripts/run-local.mjs helloasso info
+ *   node --env-file=.env scripts/run-local.mjs helloasso list recent
+ *   node --env-file=.env scripts/run-local.mjs helloasso list expired
+ *   node --env-file=.env scripts/run-local.mjs helloasso list expiring
  */
 
-const [, , command = 'hello', action] = process.argv;
+const [, , command = 'hello', action, filter] = process.argv;
+
+const options = [];
+if (action) options.push({ name: 'action', value: action });
+if (filter) options.push({ name: 'filter', value: filter });
 
 const interaction = {
   type: 2, // APPLICATION_COMMAND
   data: {
     name: command,
-    options: action ? [{ name: 'action', value: action }] : [],
+    options,
   },
 };
 

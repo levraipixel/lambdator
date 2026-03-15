@@ -4,4 +4,5 @@ const impl = await import(
 );
 
 export const upsertOrder = impl.upsertOrder;
+export const getAllOrders = impl.getAllOrders;
 export const getRecentOrders = impl.getRecentOrders;

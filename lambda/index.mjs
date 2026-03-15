@@ -1,6 +1,13 @@
 import { verifyKey, InteractionType, InteractionResponseType } from 'discord-interactions';
 import { getOrganizationDetails, getLastMembershipOrders, getAllMembershipOrders } from './helloasso.mjs';
-import { upsertOrder } from './dynamodb.mjs';
+import { upsertOrder, getAllOrders, getRecentOrders } from './dynamodb.mjs';
+
+const formatOrderLine = (o) => {
+  const d = new Date(o.date);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  return `- ${day}/${month}/${d.getFullYear()}: ${o.firstName} ${o.lastName}`;
+};
 
 const respond = (content) => ({
   statusCode: 200,
@@ -78,6 +85,59 @@ export const handler = async (event) => {
           return respond(`${newOrders.length} new member(s) added:\n${truncated}`);
         } catch (error) {
           return respond(`❌ Failed to refresh all: ${error.message}`);
+        }
+      }
+
+      if (action === 'list') {
+        const filter = options?.find((o) => o.name === 'filter')?.value;
+        if (!filter) return respond('Please provide a filter: `recent`, `expired`, or `expiring`.');
+
+        try {
+          if (filter === 'recent') {
+            const orders = await getRecentOrders(5);
+            if (orders.length === 0) return respond('No membership orders found.');
+            return respond(orders.map(formatOrderLine).join('\n'));
+          }
+
+          const allOrders = await getAllOrders();
+
+          // Keep only the most recent order per email (= renewal detection)
+          const latestPerEmail = new Map();
+          for (const order of allOrders) {
+            const existing = latestPerEmail.get(order.email);
+            if (!existing || new Date(order.date) > new Date(existing.date)) {
+              latestPerEmail.set(order.email, order);
+            }
+          }
+
+          const now = new Date();
+          const twelveMonthsAgo = new Date(now);
+          twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+          const elevenMonthsAgo = new Date(now);
+          elevenMonthsAgo.setMonth(elevenMonthsAgo.getMonth() - 11);
+
+          const candidates = [...latestPerEmail.values()];
+          let filtered;
+
+          if (filter === 'expired') {
+            filtered = candidates.filter((o) => new Date(o.date) < twelveMonthsAgo);
+          } else {
+            // expiring: will expire within the next month (ordered between 11 and 12 months ago)
+            filtered = candidates.filter((o) => {
+              const d = new Date(o.date);
+              return d >= twelveMonthsAgo && d < elevenMonthsAgo;
+            });
+          }
+
+          filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+          const label = filter === 'expired' ? 'expired' : 'expiring soon';
+          if (filtered.length === 0) return respond(`No ${label} memberships.`);
+
+          const lines = filtered.map(formatOrderLine).join('\n').slice(0, 1950);
+          return respond(`${filtered.length} ${label}:\n${lines}`);
+        } catch (error) {
+          return respond(`❌ Failed to list: ${error.message}`);
         }
       }
 
