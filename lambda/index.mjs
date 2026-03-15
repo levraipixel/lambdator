@@ -5,6 +5,8 @@ import { upsertOrder, getAllOrders, getRecentOrders } from './dynamodb.mjs';
 import { saveReminder, getAllReminders, getDueReminders, deleteReminder } from './reminders.mjs';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
+const TIMEZONE = 'Europe/Paris'; // Used for parsing user input and scheduling reminders at "9am tomorrow" etc.
+
 const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION });
 // Eagerly resolve IAM credentials during cold start so the first handler
 // invocation doesn't pay the IMDS latency cost inside the 3s Discord window.
@@ -210,7 +212,7 @@ export const handler = async (event) => {
       const naive = new Date();
       naive.setUTCDate(naive.getUTCDate() + 1);
       naive.setUTCHours(9, 0, 0, 0);
-      const tomorrow = new Date(naive.getTime() - getTimezoneOffsetMinutes('Europe/Paris', naive) * 60000);
+      const tomorrow = new Date(naive.getTime() - getTimezoneOffsetMinutes(TIMEZONE, naive) * 60000);
       const remindAt = tomorrow.toISOString();
       await saveReminder({
         userId: interaction.member?.user?.id ?? interaction.user?.id,
@@ -274,7 +276,7 @@ export const handler = async (event) => {
         naiveDate.setUTCHours(9, 0, 0, 0);
       }
       // chrono parses times in the system timezone (UTC on Lambda), so shift to the user's timezone.
-      const remindAt = new Date(naiveDate.getTime() - getTimezoneOffsetMinutes(timezone, naiveDate) * 60000);
+      const remindAt = new Date(naiveDate.getTime() - getTimezoneOffsetMinutes(TIMEZONE, naiveDate) * 60000);
 
       if (remindAt <= now) {
         return respondEphemeral('Please provide a future date.');
