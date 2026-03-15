@@ -1,3 +1,4 @@
+import * as chrono from 'chrono-node';
 import { verifyKey, InteractionType, InteractionResponseType } from 'discord-interactions';
 import { getOrganizationDetails, getLastMembershipOrders, getAllMembershipOrders } from './helloasso.mjs';
 import { upsertOrder, getAllOrders, getRecentOrders } from './dynamodb.mjs';
@@ -186,6 +187,88 @@ export const handler = async (event) => {
         remindAt,
       });
       return respondEphemeral('Got it! I\'ll remind you about this message in 1 hour. ⏰');
+    }
+
+    if (name === 'Remind me tomorrow') {
+      const tomorrow = new Date();
+      tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+      tomorrow.setUTCHours(9, 0, 0, 0);
+      const remindAt = tomorrow.toISOString();
+      await saveReminder({
+        userId: interaction.member?.user?.id ?? interaction.user?.id,
+        messageId,
+        channelId: interaction.channel_id,
+        guildId: interaction.guild_id ?? null,
+        remindAt,
+      });
+      const ts = Math.floor(tomorrow.getTime() / 1000);
+      return respondEphemeral(`Got it! I'll remind you about this message <t:${ts}:R>. ⏰`);
+    }
+
+    if (name === 'Remind me on specific date') {
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 9, // MODAL
+          data: {
+            custom_id: `remind_date:${interaction.channel_id}:${messageId}`,
+            title: 'Schedule a reminder',
+            components: [{
+              type: 1, // ACTION_ROW
+              components: [{
+                type: 4, // TEXT_INPUT
+                custom_id: 'date',
+                label: 'When?',
+                style: 1, // SHORT
+                placeholder: 'e.g. "in 2 weeks", "June 6 at 10pm", "2026-04-15"',
+                required: true,
+              }],
+            }],
+          },
+        }),
+      };
+    }
+  }
+
+  // Modal submission handling
+  if (interaction.type === 5) { // MODAL_SUBMIT
+    const { custom_id, components } = interaction.data;
+
+    if (custom_id.startsWith('remind_date:')) {
+      const userId = interaction.member?.user?.id ?? interaction.user?.id;
+      const allowedIds = (process.env.ALLOWED_DISCORD_USER_IDS ?? '').split(',').map((id) => id.trim()).filter(Boolean);
+      if (allowedIds.length > 0 && !allowedIds.includes(userId)) {
+        return respondEphemeral('You are not authorized to use this command.');
+      }
+
+      const [, channelId, messageId] = custom_id.split(':');
+      const dateValue = components[0].components[0].value.trim();
+
+      const now = new Date();
+      const parsed = chrono.parse(dateValue, now, { forwardDate: true })[0];
+      if (!parsed) {
+        return respondEphemeral(`I couldn't understand "${dateValue}". Try something like "in 2 weeks", "June 6 at 10pm", or "2026-04-15".`);
+      }
+
+      const remindAt = parsed.date();
+      if (!parsed.start.isCertain('hour')) {
+        remindAt.setHours(9, 0, 0, 0);
+      }
+      if (remindAt <= now) {
+        return respondEphemeral('Please provide a future date.');
+      }
+
+      await saveReminder({
+        userId,
+        messageId,
+        channelId,
+        guildId: interaction.guild_id ?? null,
+        remindAt: remindAt.toISOString(),
+      });
+
+      const ts = Math.floor(remindAt.getTime() / 1000);
+      return respondEphemeral(`Got it! I'll remind you about this message <t:${ts}:R>. ⏰`);
     }
   }
 
