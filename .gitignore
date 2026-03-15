@@ -13,5 +13,8 @@ terraform.tfstate.backup
 # Build artifacts
 dist/
 
+# Local env
+.env
+
 # OS
 .DS_Store

@@ -15,6 +15,10 @@ const oAuthClient = new ClientCredentials({
     tokenHost: API_BASE_URL,
     tokenPath: '/oauth2/token',
   },
+  options: {
+    // HelloAsso expects credentials in the request body, not as Basic Auth header
+    authorizationMethod: 'body',
+  },
 });
 
 let accessToken;
@@ -23,14 +27,9 @@ const getAccessToken = async () => {
     return accessToken;
   }
 
-  try {
-    const token = await oAuthClient.getToken();
-    console.log('Access Token:', token.token);
-    accessToken = token.token;
-    return accessToken;
-  } catch (error) {
-    console.error('Error getting access token:', error.message);
-  }
+  const token = await oAuthClient.getToken();
+  accessToken = token.token.access_token;
+  return accessToken;
 };
 
 export const getOrganizationDetails = async () => {
@@ -46,8 +45,7 @@ export const getOrganizationDetails = async () => {
         console.error('Error getting organization details:', error);
         reject(error);
       } else {
-        console.log('Organization details:', data, response);
-        resolve(data);
+        resolve(data ?? response.body);
       }
     });
   });

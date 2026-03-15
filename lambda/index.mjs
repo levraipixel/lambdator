@@ -15,10 +15,12 @@ export const handler = async (event) => {
   const timestamp = event.headers['x-signature-timestamp'];
   const rawBody = event.body ?? '';
 
-  // Verify the request is genuinely from Discord
-  const isValid = await verifyKey(rawBody, signature, timestamp, process.env.DISCORD_PUBLIC_KEY);
-  if (!isValid) {
-    return { statusCode: 401, body: 'Invalid request signature' };
+  // Verify the request is genuinely from Discord (skipped in local dev mode)
+  if (process.env.LOCAL_MODE !== 'true') {
+    const isValid = verifyKey(rawBody, signature, timestamp, process.env.DISCORD_PUBLIC_KEY);
+    if (!isValid) {
+      return { statusCode: 401, body: 'Invalid request signature' };
+    }
   }
 
   const interaction = JSON.parse(rawBody);
